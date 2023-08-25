@@ -34,10 +34,10 @@ from .uow import OAISetCommitOp, OAISetDeleteOp
 class OAIPMHServerService(Service):
     """OAI-PMH service."""
 
-    def __init__(self, config, extra_reserved_prefixes=None):
+    def __init__(self, config, extra_reserved_prefixes={}):
         """Init service with config."""
         super().__init__(config)
-        self.extra_reserved_prefixes = extra_reserved_prefixes or {}
+        self.extra_reserved_prefixes = extra_reserved_prefixes
 
     @property
     def schema(self):
@@ -51,11 +51,10 @@ class OAIPMHServerService(Service):
             self.config.links_item,
         )
 
-    @property
-    def reserved_prefixes(self):
+    def _reserved_prefixes(self):
         """Get OAI-PMH set prefix from config."""
-        _reserved_prefixes = set([current_app.config["COMMUNITIES_OAI_SETS_PREFIX"]])
-        return _reserved_prefixes.union(self.extra_reserved_prefixes)
+        reserved_prefixes = set([current_app.config["COMMUNITIES_OAI_SETS_PREFIX"]])
+        return reserved_prefixes.union(self.extra_reserved_prefixes)
 
     def _get_one(self, raise_error=True, **kwargs):
         """Retrieve set based on provided arguments."""
@@ -73,11 +72,11 @@ class OAIPMHServerService(Service):
     def _validate_spec(self, spec):
         """Checks the validity of the provided spec."""
         # Reserved for community integration
-        if spec.startswith(tuple(self.reserved_prefixes)):
+        if spec.startswith(tuple(self._reserved_prefixes())):
             raise ValidationError(
                 _(
                     "The spec must not start with any of the following list '{prefix}'.".format(
-                        prefix=list(self.reserved_prefixes)
+                        prefix=list(self._reserved_prefixes())
                     )
                 ),
                 field_name="spec",
@@ -105,7 +104,7 @@ class OAIPMHServerService(Service):
             raise_errors=True,
         )
         self._validate_spec(valid_data["spec"])
-        system_created = valid_data["spec"].startswith(tuple(self.reserved_prefixes))
+        system_created = valid_data["spec"].startswith(tuple(self._reserved_prefixes()))
 
         new_set = OAISet(**valid_data, system_created=system_created)
         existing_set, errors = self._get_one(spec=new_set.spec, raise_error=False)

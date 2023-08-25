@@ -13,7 +13,6 @@
 See https://pytest-invenio.readthedocs.io/ for documentation on which test
 fixtures are available.
 """
-from invenio_rdm_records.services.permissions import RDMRequestsPermissionPolicy
 
 # Monkey patch Werkzeug 2.1
 # Flask-Login uses the safe_str_cmp method which has been removed in Werkzeug
@@ -159,7 +158,6 @@ def app_config(app_config, mock_datacite_client):
         "PIDSTORE_RECID_FIELD",
         "RECORDS_PERMISSIONS_RECORD_POLICY",
         "RECORDS_REST_ENDPOINTS",
-        "REQUESTS_PERMISSION_POLICY",
     ]
 
     for config_key in supported_configurations:
@@ -300,11 +298,9 @@ def app_config(app_config, mock_datacite_client):
 
     app_config["RDM_RESOURCE_ACCESS_TOKENS_ENABLED"] = True
 
-    # Disable the automatic creation of moderation requests after publishing a record.
+    # Users are verified by default. This will disable the automatic creation of moderation requests after publishing a record.
     # When testing unverified users, there is a "unverified_user" fixture for that purpose.
     app_config["ACCOUNTS_DEFAULT_USERS_VERIFIED"] = True
-    app_config["RDM_USER_MODERATION_ENABLED"] = False
-    app_config["REQUESTS_PERMISSION_POLICY"] = RDMRequestsPermissionPolicy
 
     app_config["COMMUNITIES_OAI_SETS_PREFIX"] = "community-"
     return app_config
@@ -1039,16 +1035,6 @@ def identity_simple(users):
     return i
 
 
-@pytest.fixture()
-def anonymous_identity(users):
-    """Simple identity fixture."""
-    user = users[1]
-    i = Identity(user.id)
-    i.provides.add(UserNeed(user.id))
-    i.provides.add(Need(method="system_role", value="any_user"))
-    return i
-
-
 @pytest.fixture(scope="module")
 def languages_type(app):
     """Lanuage vocabulary type."""
@@ -1637,8 +1623,6 @@ def verified_user(UserFixture, app, db):
     )
     u.create(app, db)
     u.user.verified_at = datetime.utcnow()
-    # Dumping `is_verified` requires authenticated user in tests
-    u.identity.provides.add(Need(method="system_role", value="authenticated_user"))
     return u
 
 
@@ -1651,8 +1635,6 @@ def unverified_user(UserFixture, app, db):
     )
     u.create(app, db)
     u.user.verified_at = None
-    # Dumping `is_verified` requires authenticated user in tests
-    u.identity.provides.add(Need(method="system_role", value="authenticated_user"))
     return u
 
 
